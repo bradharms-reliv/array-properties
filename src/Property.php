@@ -5,7 +5,6 @@ namespace Reliv\ArrayProperties;
 use Reliv\ArrayProperties\Exception\ArrayPropertyException;
 use Reliv\ArrayProperties\Exception\ArrayPropertyMissing;
 use Reliv\ArrayProperties\Exception\IllegalArrayProperty;
-use Reliv\Json\Json;
 
 /**
  * @author James Jervis - https://github.com/jerv13
@@ -440,7 +439,15 @@ class Property
             return $message;
         }
 
-        return $message . " - Context ({$contextType}): \n"
-            . Json::encode($context, JSON_PRETTY_PRINT, self::$depth);
+        // Clear json_last_error()
+        json_encode(null);
+
+        $json = json_encode($context, JSON_PRETTY_PRINT, self::$depth);
+
+        if (JSON_ERROR_NONE !== json_last_error()) {
+            return $message;
+        }
+
+        return $message . " - Context ({$contextType}): \n" . $json;
     }
 }
