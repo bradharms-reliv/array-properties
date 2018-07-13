@@ -5,6 +5,7 @@ namespace Reliv\ArrayProperties;
 use Reliv\ArrayProperties\Exception\ArrayPropertyException;
 use Reliv\ArrayProperties\Exception\ArrayPropertyMissing;
 use Reliv\ArrayProperties\Exception\IllegalArrayProperty;
+use Reliv\Json\Json;
 
 /**
  * @author James Jervis - https://github.com/jerv13
@@ -12,15 +13,18 @@ use Reliv\ArrayProperties\Exception\IllegalArrayProperty;
 class Property
 {
     protected static $debug = false;
+    protected static $depth = 2;
 
     /**
      * @param bool $debug
+     * @param int  $depth
      *
      * @return void
      */
-    public static function bootstrap(bool $debug)
+    public static function bootstrap(bool $debug, int $depth = 2)
     {
         self::$debug = $debug;
+        self::$depth = $depth;
     }
 
     /**
@@ -302,11 +306,16 @@ class Property
         );
 
         if (empty($value)) {
+            $message = self::buildErrorMessage(
+                $params,
+                $key,
+                "Property ({$key}) is missing and is required and can not be empty",
+                $context
+            );
             self::throwParamException(
                 $params,
                 $key,
-                $context,
-                new ArrayPropertyMissing("Property ({$key}) is missing and is required and can not be empty")
+                new ArrayPropertyMissing($message)
             );
         }
     }
@@ -328,11 +337,17 @@ class Property
             return;
         }
 
+        $message = self::buildErrorMessage(
+            $params,
+            $key,
+            "Property ({$key}) is missing and is required",
+            $context
+        );
+
         self::throwParamException(
             $params,
             $key,
-            $context,
-            new ArrayPropertyMissing("Property ({$key}) is missing and is required")
+            new ArrayPropertyMissing($message)
         );
     }
 
@@ -353,41 +368,34 @@ class Property
             return;
         }
 
+        $message = self::buildErrorMessage(
+            $params,
+            $key,
+            "Illegal property ({$key}) is was found",
+            $context
+        );
+
         self::throwParamException(
             $params,
             $key,
-            $context,
-            new IllegalArrayProperty("Illegal property ({$key}) is was found")
+            new IllegalArrayProperty($message)
         );
     }
 
     /**
-     * @param array              $params
-     * @param string             $key
-     * @param null|string|object $context
-     * @param \Throwable|null    $exception
+     * @param array           $params
+     * @param string          $key
+     * @param \Throwable|null $exception
      *
      * @return void
      * @throws \Throwable|ArrayPropertyException
      */
-    public static function throwParamException(
+    protected static function throwParamException(
         array $params,
         string $key,
-        $context = null,
-        \Throwable $exception = null
+        \Throwable $exception
     ) {
-        $message = '';
-
-        if (!empty($exception)) {
-            $message = $exception->getMessage();
-        }
-
-        $message = self::buildErrorMessage(
-            $params,
-            $key,
-            $message,
-            $context
-        );
+        $message = $exception->getMessage();
 
         if (self::isDebug()) {
             echo(
@@ -400,11 +408,7 @@ class Property
             );
         }
 
-        if (!empty($exception)) {
-            throw $exception;
-        }
-
-        throw new ArrayPropertyException($message);
+        throw $exception;
     }
 
     /**
@@ -426,14 +430,17 @@ class Property
                 . ' in params: (' . json_encode($params, 0, 3) . ')';
         }
 
+        $contextType = gettype($context);
+
         if (is_object($context)) {
             $context = get_class($context);
         }
 
-        if (empty($context)) {
+        if ($context === null) {
             return $message;
         }
 
-        return $message . ' Context: ' . $context;
+        return $message . " - Context ({$contextType}): \n"
+            . Json::encode($context, JSON_PRETTY_PRINT, self::$depth);
     }
 }
